@@ -5,7 +5,7 @@ import pandas as pd
 class Linear:
     def __init__(self, input_size, output_size):
         self.W = np.random.randn(input_size, output_size) * 0.01
-        self.B = np.zeros(1)  # Initialize bias to zero
+        self.B = np.zeros(output_size)  # Corrected bias initialization
         self.X = None
 
     def forward(self, X):
@@ -14,7 +14,7 @@ class Linear:
 
     def backward(self, dE_dY, lr):
         dE_dW = self.X.T @ dE_dY
-        dE_dB = np.sum(dE_dY)
+        dE_dB = np.sum(dE_dY, axis=0)  # Corrected sum over batch samples
         dE_dX = dE_dY @ self.W.T
 
         # Update parameters
@@ -48,7 +48,7 @@ class MSE:
         return np.mean((X - O) ** 2)
 
     def backward(self):
-        n = self.X.shape[0]
+        n = self.X.size  # Corrected to total number of elements
         return (self.X - self.O) * (2 / n)
 
 
@@ -58,12 +58,14 @@ def one_hot(y, num_classes):
 
 
 def train(X_train, y_train, model, loss_fn, lr, epochs, batch_size):
+    n_samples = X_train.shape[0]
     for epoch in range(epochs):
         indices = np.random.permutation(n_samples)
         X_shuffled = X_train[indices]
         y_shuffled = y_train[indices]
 
         total_loss = 0
+        num_batches = 0
         for i in range(0, n_samples, batch_size):
             # Get batch
             X_batch = X_shuffled[i : i + batch_size]
@@ -77,6 +79,7 @@ def train(X_train, y_train, model, loss_fn, lr, epochs, batch_size):
             # Compute loss
             loss = loss_fn.forward(activations, O_batch)
             total_loss += loss
+            num_batches += 1
 
             # Backward pass
             grad = loss_fn.backward()
@@ -84,7 +87,7 @@ def train(X_train, y_train, model, loss_fn, lr, epochs, batch_size):
                 grad = layer.backward(grad, lr)
 
         # Print epoch statistics
-        avg_loss = total_loss / (n_samples // batch_size)
+        avg_loss = total_loss / num_batches  # Corrected average calculation
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
 
@@ -92,9 +95,9 @@ def preprocess(train_path, test_path):
     df_train = pd.read_csv(train_path)
     df_test = pd.read_csv(test_path)
 
-    X_train = np.array(df_train.iloc[:, 1:]) / 255
+    X_train = np.array(df_train.iloc[:, 1:]) / 255.0
     y_train = np.array(df_train.iloc[:, 0])
-    X_test = np.array(df_test.iloc[:, 1:]) / 255
+    X_test = np.array(df_test.iloc[:, 1:]) / 255.0
     y_test = np.array(df_test.iloc[:, 0])
     y_train = np.eye(10)[y_train]
     y_test = np.eye(10)[y_test]
@@ -109,7 +112,6 @@ if __name__ == "__main__":
     lr = 0.01
     epochs = 4
     batch_size = 32
-    n_samples = X_train.shape[0]
 
     model = [
         Linear(784, 256),
